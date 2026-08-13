@@ -1,13 +1,13 @@
 package com.wildassoler.scorelight
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,7 +25,9 @@ import com.thelightphone.sdk.ui.LightThemeController
 import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 sealed class ResultUiState {
@@ -35,16 +37,24 @@ sealed class ResultUiState {
     data class Error(val message: String) : ResultUiState()
 }
 
+// The health score we show for a product: a short label ("Good", "Poor"...)
+// plus a handful of one-line reasons explaining where it came from.
 data class HealthScore(
     val label: String,
     val reasons: List<String>,
 )
 
-class ResultScreenViewModel(private val barcode: String) : LightViewModel<Unit>() {
+class ResultScreenViewModel(
+    private val barcode: String,
+    private val favoritesStore: FavoritesStore,
+) : LightViewModel<Unit>() {
     private val api = OpenFoodFactsApi()
 
     private val _uiState = MutableStateFlow<ResultUiState>(ResultUiState.Loading)
     val uiState = _uiState.asStateFlow()
+
+    val isFavorite = favoritesStore.isFavorite(barcode)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     override fun onScreenShow(screen: SimpleLightScreen<Unit>) {
         super.onScreenShow(screen)
@@ -67,6 +77,10 @@ class ResultScreenViewModel(private val barcode: String) : LightViewModel<Unit>(
         }
     }
 
+    fun toggleFavorite(product: ScannedProduct) {
+        viewModelScope.launch { favoritesStore.toggleFavorite(product) }
+    }
+
     override fun onCleared() {
         super.onCleared()
         api.close()
@@ -81,12 +95,14 @@ class ResultScreen(
     override val viewModelClass: Class<ResultScreenViewModel>
         get() = ResultScreenViewModel::class.java
 
-    override fun createViewModel(): ResultScreenViewModel = ResultScreenViewModel(barcode)
+    override fun createViewModel(): ResultScreenViewModel =
+        ResultScreenViewModel(barcode, FavoritesStore(lightContext.dataStore))
 
     @Composable
     override fun Content() {
         val themeColors by LightThemeController.colors.collectAsState()
         val state by viewModel.uiState.collectAsState()
+        val isFavorite by viewModel.isFavorite.collectAsState()
 
         LightTheme(colors = themeColors) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -100,8 +116,13 @@ class ResultScreen(
                 )
 
                 when (val current = state) {
-                    is ResultUiState.Loading -> LoadingContent()
-                    is ResultUiState.Found -> FoundContent(current.product, current.score)
+                    is ResultUiState.Loading -> MessageContent("Looking up product…")
+                    is ResultUiState.Found -> ProductDetailContent(
+                        product = current.product,
+                        score = current.score,
+                        isFavorite = isFavorite,
+                        onToggleFavorite = { viewModel.toggleFavorite(current.product) },
+                    )
                     is ResultUiState.NotFound -> MessageContent(
                         "Product not found in the OpenFoodFacts database.",
                     )
@@ -115,50 +136,19 @@ class ResultScreen(
 }
 
 @Composable
-private fun LoadingContent() {
-    Column(modifier = Modifier.fillMaxSize().padding(32.dp)) {
-        LightText(text = "Looking up product…", variant = LightTextVariant.Copy, lighten = true)
-    }
-}
-
-@Composable
 private fun MessageContent(message: String) {
-    Column(modifier = Modifier.fillMaxSize().padding(32.dp)) {
-        LightText(
-            text = message,
-            variant = LightTextVariant.Copy,
-            align = TextAlign.Start,
-        )
+    Box(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        contentAlignment = Alignment.TopStart,
+    ) {
+        LightText(text = message, variant = LightTextVariant.Copy, align = TextAlign.Start)
     }
 }
 
-@Composable
-private fun FoundContent(product: ScannedProduct, score: HealthScore) {
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp)) {
-        LightText(
-            text = product.name,
-            variant = LightTextVariant.Heading,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-
-        LightText(
-            text = score.label,
-            variant = LightTextVariant.Heading,
-            modifier = Modifier.padding(bottom = 24.dp),
-        )
-
-        LazyColumn {
-            items(score.reasons) { reason ->
-                LightText(
-                    text = "• $reason",
-                    variant = LightTextVariant.Copy,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-            }
-        }
-    }
-}
-
+// Turns raw OpenFoodFacts fields into a short label + a few plain-English
+// reasons. Deliberately simple (no weighted formula) — Nutri-Score is
+// already a well-reviewed, published scoring system, so we lean on it for
+// the label and just surface the specific numbers behind it as the reasons.
 fun calculateHealthScore(product: ScannedProduct): HealthScore {
     val reasons = mutableListOf<String>()
 
@@ -181,6 +171,8 @@ fun calculateHealthScore(product: ScannedProduct): HealthScore {
         reasons.add("Ultra-processed food (NOVA group 4).")
     }
 
+    // Thresholds below are the same ones used by Nutri-Score / French
+    // public health guidance for "high in" nutrient warnings.
     product.sugarsPer100g?.let { sugars ->
         if (sugars > 15.0) reasons.add("High in sugar (${sugars.oneDecimal()}g per 100g).")
     }
@@ -196,9 +188,4 @@ fun calculateHealthScore(product: ScannedProduct): HealthScore {
     }
 
     return HealthScore(label = label, reasons = reasons)
-}
-
-private fun Double.oneDecimal(): String {
-    val rounded = kotlin.math.round(this * 10) / 10.0
-    return rounded.toString()
 }
