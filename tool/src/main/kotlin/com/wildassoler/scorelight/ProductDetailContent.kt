@@ -19,6 +19,12 @@ import com.thelightphone.sdk.ui.LightTextVariant
 import com.thelightphone.sdk.ui.LightThemeTokens
 import com.thelightphone.sdk.ui.lightClickable
 
+/**
+ * Shared "product + score" body, used by both ResultScreen (after a fresh
+ * OpenFoodFacts lookup) and FavoriteDetailScreen (from a cached favourite —
+ * no network call). Keeping this as one composable means the two screens
+ * can never visually drift apart.
+ */
 @Composable
 fun ProductDetailContent(
     product: ScannedProduct,
@@ -26,6 +32,8 @@ fun ProductDetailContent(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
 ) {
+    // A bigger, bolder style than the SDK's default Heading — this is the
+    // one thing on the screen we want to jump out at a glance.
     val scoreLabelStyle = LightThemeTokens.typography.heading.copy(
         color = LightThemeTokens.colors.content,
         fontSize = LightThemeTokens.typography.heading.fontSize * 1.4f,
@@ -118,6 +126,9 @@ fun ProductDetailContent(
     }
 }
 
+// One line per available macro — nulls (nutrient not reported by
+// OpenFoodFacts for this product) are simply skipped rather than shown as
+// "N/A", since that's a data gap, not a zero value.
 private fun nutritionLines(product: ScannedProduct): List<String> {
     val lines = mutableListOf<String>()
     product.energyKcalPer100g?.let { lines.add("Calories: ${it.oneDecimal()} kcal") }
@@ -129,9 +140,4 @@ private fun nutritionLines(product: ScannedProduct): List<String> {
     product.saltPer100g?.let { lines.add("Salt: ${it.oneDecimal()}g") }
     if (lines.isEmpty()) lines.add("No nutrition data available for this product.")
     return lines
-}
-
-fun Double.oneDecimal(): String {
-    val rounded = kotlin.math.round(this * 10) / 10.0
-    return rounded.toString()
 }

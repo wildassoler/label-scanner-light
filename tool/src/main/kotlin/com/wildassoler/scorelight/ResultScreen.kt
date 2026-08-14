@@ -30,19 +30,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+// HealthScore and calculateHealthScore now live in HealthScore.kt — pure
+// domain logic, no Compose dependency, testable on its own.
+
 sealed class ResultUiState {
     data object Loading : ResultUiState()
     data class Found(val product: ScannedProduct, val score: HealthScore) : ResultUiState()
     data object NotFound : ResultUiState()
     data class Error(val message: String) : ResultUiState()
 }
-
-// The health score we show for a product: a short label ("Good", "Poor"...)
-// plus a handful of one-line reasons explaining where it came from.
-data class HealthScore(
-    val label: String,
-    val reasons: List<String>,
-)
 
 class ResultScreenViewModel(
     private val barcode: String,
@@ -143,49 +139,4 @@ private fun MessageContent(message: String) {
     ) {
         LightText(text = message, variant = LightTextVariant.Copy, align = TextAlign.Start)
     }
-}
-
-// Turns raw OpenFoodFacts fields into a short label + a few plain-English
-// reasons. Deliberately simple (no weighted formula) — Nutri-Score is
-// already a well-reviewed, published scoring system, so we lean on it for
-// the label and just surface the specific numbers behind it as the reasons.
-fun calculateHealthScore(product: ScannedProduct): HealthScore {
-    val reasons = mutableListOf<String>()
-
-    val label = when (product.nutriscoreGrade) {
-        "a" -> "Excellent"
-        "b" -> "Good"
-        "c" -> "Average"
-        "d" -> "Poor"
-        "e" -> "Bad"
-        else -> "Unrated"
-    }
-
-    if (product.nutriscoreGrade != null) {
-        reasons.add("Nutri-Score: ${product.nutriscoreGrade.uppercase()}")
-    } else {
-        reasons.add("No Nutri-Score available for this product.")
-    }
-
-    if (product.novaGroup == 4) {
-        reasons.add("Ultra-processed food (NOVA group 4).")
-    }
-
-    // Thresholds below are the same ones used by Nutri-Score / French
-    // public health guidance for "high in" nutrient warnings.
-    product.sugarsPer100g?.let { sugars ->
-        if (sugars > 15.0) reasons.add("High in sugar (${sugars.oneDecimal()}g per 100g).")
-    }
-    product.saturatedFatPer100g?.let { fat ->
-        if (fat > 5.0) reasons.add("High in saturated fat (${fat.oneDecimal()}g per 100g).")
-    }
-    product.saltPer100g?.let { salt ->
-        if (salt > 1.5) reasons.add("High in salt (${salt.oneDecimal()}g per 100g).")
-    }
-
-    if (product.additivesCount > 0) {
-        reasons.add("Contains ${product.additivesCount} food additive(s).")
-    }
-
-    return HealthScore(label = label, reasons = reasons)
 }
