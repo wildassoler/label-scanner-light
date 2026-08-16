@@ -15,7 +15,6 @@ import androidx.lifecycle.viewModelScope
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel
 import com.thelightphone.sdk.SealedLightActivity
-import com.thelightphone.sdk.SimpleLightScreen
 import com.thelightphone.sdk.ui.LightBarButton
 import com.thelightphone.sdk.ui.LightIcons
 import com.thelightphone.sdk.ui.LightText
@@ -42,25 +41,27 @@ sealed class ResultUiState {
 
 class ResultScreenViewModel(
     private val barcode: String,
-    private val favoritesStore: FavoritesStore,
+    private val lookupService: ProductLookupService,
+    private val favoritesStore: FavoritesRepository,
 ) : LightViewModel<Unit>() {
-    private val api = OpenFoodFactsApi()
-
     private val _uiState = MutableStateFlow<ResultUiState>(ResultUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
     val isFavorite = favoritesStore.isFavorite(barcode)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    override fun onScreenShow(screen: SimpleLightScreen<Unit>) {
-        super.onScreenShow(screen)
+    // Runs once, at ViewModel construction — not tied to onScreenShow, since
+    // ResultScreen is always freshly created on navigation (never reused
+    // across a hide/show cycle), and doing it here makes the ViewModel
+    // testable without needing a live SimpleLightScreen instance.
+    init {
         lookUp()
     }
 
     private fun lookUp() {
         viewModelScope.launch {
             _uiState.value = ResultUiState.Loading
-            when (val result = api.fetchProduct(barcode)) {
+            when (val result = lookupService.fetchProduct(barcode)) {
                 is ScanLookupResult.Found -> {
                     _uiState.value = ResultUiState.Found(
                         product = result.product,
@@ -79,7 +80,7 @@ class ResultScreenViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        api.close()
+        (lookupService as? OpenFoodFactsService)?.close()
     }
 }
 
@@ -92,7 +93,7 @@ class ResultScreen(
         get() = ResultScreenViewModel::class.java
 
     override fun createViewModel(): ResultScreenViewModel =
-        ResultScreenViewModel(barcode, FavoritesStore(lightContext.dataStore))
+        ResultScreenViewModel(barcode, OpenFoodFactsService(), FavoritesStore(lightContext.dataStore))
 
     @Composable
     override fun Content() {

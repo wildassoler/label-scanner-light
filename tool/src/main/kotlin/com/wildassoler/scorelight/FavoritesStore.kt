@@ -6,21 +6,31 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 private val FAVORITES_KEY = stringPreferencesKey("favorite_products")
 private val json = Json { ignoreUnknownKeys = true }
 
-class FavoritesStore(private val dataStore: DataStore<Preferences>) {
+/**
+ * Persists the user's favourited products locally, using the DataStore the
+ * SDK already exposes via `lightContext.dataStore`.
+ *
+ * Implements FavoritesRepository so ViewModels can depend on the interface
+ * instead of this concrete class — tests use InMemoryFavoritesRepository
+ * instead, no real DataStore/disk I/O needed.
+ */
+class FavoritesStore(private val dataStore: DataStore<Preferences>) : FavoritesRepository {
 
-    val favorites: Flow<List<ScannedProduct>> = dataStore.data.map { prefs ->
+    override val favorites: Flow<List<ScannedProduct>> = dataStore.data.map { prefs ->
         decodeList(prefs[FAVORITES_KEY])
     }
 
-    fun isFavorite(barcode: String): Flow<Boolean> =
+    override fun isFavorite(barcode: String): Flow<Boolean> =
         favorites.map { list -> list.any { it.barcode == barcode } }
 
-    suspend fun toggleFavorite(product: ScannedProduct) {
+    override suspend fun toggleFavorite(product: ScannedProduct) {
         dataStore.edit { prefs ->
             val current = decodeList(prefs[FAVORITES_KEY])
             val alreadyFavorite = current.any { it.barcode == product.barcode }
