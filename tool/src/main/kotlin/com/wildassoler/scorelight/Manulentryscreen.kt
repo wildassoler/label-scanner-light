@@ -1,31 +1,14 @@
 package com.wildassoler.scorelight
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.thelightphone.sdk.InitialScreen
@@ -38,18 +21,13 @@ import com.thelightphone.sdk.ui.LightText
 import com.thelightphone.sdk.ui.LightTextVariant
 import com.thelightphone.sdk.ui.LightTheme
 import com.thelightphone.sdk.ui.LightThemeController
-import com.thelightphone.sdk.ui.LightThemeTokens
 import com.thelightphone.sdk.ui.lightClickable
 
 /**
- * First screen of the app: a single text field for the product's barcode
- * digits, plus a link into the favourites list.
- *
- * The field does NOT auto-focus on open — if it did, the keyboard would pop
- * up immediately and cover/block the "Favourites" link below it, forcing
- * anyone who just wants to check their favourites to dismiss the keyboard
- * first. Instead it shows as a plain underlined line with a placeholder,
- * and only opens the keyboard once the user actually taps it.
+ * Home screen: just the title, a big search icon that opens the barcode
+ * entry pad, and a link into favourites. Deliberately minimal — the number
+ * pad needs its own screen with room to breathe (see BarcodeEntryScreen),
+ * rather than sharing this one with the title/subtitle/favourites link.
  */
 @InitialScreen
 class ManualEntryScreen(sealedActivity: SealedLightActivity) :
@@ -63,11 +41,11 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
     @Composable
     override fun Content() {
         val themeColors by LightThemeController.colors.collectAsState()
-        var barcodeText by remember { mutableStateOf("") }
 
         LightTheme(colors = themeColors) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxSize().padding(32.dp),
             ) {
                 LightText(
@@ -77,74 +55,24 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LightText(
-                    text = "Type a product's barcode to see its health score.",
+                    text = "Look up a product's health score.",
                     variant = LightTextVariant.Copy,
                     align = TextAlign.Center,
                     lighten = true,
-                    modifier = Modifier.padding(bottom = 32.dp),
-                )
-
-                val inputTextStyle = LightThemeTokens.typography.heading
-                    .copy(color = LightThemeTokens.colors.content)
-
-                val interactionSource = remember { MutableInteractionSource() }
-                val isFocused by interactionSource.collectIsFocusedAsState()
-
-                Box(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
-                    // Placeholder — hides as soon as the field is tapped
-                    // (focused), not only once text is typed, so it never
-                    // sits behind the blinking cursor.
-                    if (barcodeText.isEmpty() && !isFocused) {
-                        LightText(
-                            text = "Enter barcode",
-                            variant = LightTextVariant.Copy,
-                            lighten = true,
-                            align = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-
-                    BasicTextField(
-                        value = barcodeText,
-                        onValueChange = { newValue -> barcodeText = newValue.filter { it.isDigit() } },
-                        textStyle = inputTextStyle.copy(textAlign = TextAlign.Center),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done,
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = { submitIfNotBlank(barcodeText) { code -> navigateToResult(code) } },
-                        ),
-                        singleLine = true,
-                        visualTransformation = Ean13GroupingTransformation,
-                        interactionSource = interactionSource,
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(LightThemeTokens.colors.content),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-
-                // Thin underline under the field — signals "this is a
-                // single line of input", nothing more, keeping the screen
-                // minimal rather than boxing the field in.
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(LightThemeTokens.colors.contentSecondary)
-                        .padding(bottom = 32.dp),
+                    modifier = Modifier.padding(bottom = 48.dp),
                 )
 
                 LightIcon(
                     icon = LightIcons.SEARCH,
                     modifier = Modifier
                         .lightClickable(
-                            onClick = { submitIfNotBlank(barcodeText) { code -> navigateToResult(code) } },
+                            onClick = {
+                                navigateTo(screenFactory = { activity -> BarcodeEntryScreen(activity) })
+                            },
                         )
-                        .padding(top = 32.dp, bottom = 48.dp),
+                        .padding(bottom = 48.dp),
                 )
 
-                // Favourites deserves more visual weight than a plain
-                // secondary link — it's a real destination, not a footnote.
                 LightText(
                     text = "Favourites",
                     variant = LightTextVariant.Heading,
@@ -157,45 +85,6 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
             }
         }
     }
-
-    private fun navigateToResult(barcode: String) {
-        navigateTo(screenFactory = { activity -> ResultScreen(activity, normalizeBarcode(barcode)) })
-    }
-
-    private inline fun submitIfNotBlank(value: String, onValid: (String) -> Unit) {
-        val trimmed = value.trim()
-        if (trimmed.isNotEmpty()) onValid(trimmed)
-    }
 }
 
 class ManualEntryScreenViewModel : LightViewModel<Unit>()
-
-// Groups digits like a printed EAN-13 barcode: "4 056489 409755" — one
-// digit, a space, six digits, a space, six digits.
-private object Ean13GroupingTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val digits = text.text
-        val formatted = buildString {
-            digits.forEachIndexed { index, char ->
-                if (index == 1 || index == 7) append(' ')
-                append(char)
-            }
-        }
-
-        val offsetMapping = object : OffsetMapping {
-            override fun originalToTransformed(offset: Int): Int = offset + when {
-                offset > 7 -> 2
-                offset > 1 -> 1
-                else -> 0
-            }
-
-            override fun transformedToOriginal(offset: Int): Int = offset - when {
-                offset > 8 -> 2
-                offset > 1 -> 1
-                else -> 0
-            }
-        }
-
-        return TransformedText(AnnotatedString(formatted), offsetMapping)
-    }
-}
