@@ -49,7 +49,9 @@ fun ProductDetailContent(
             LightText(
                 text = product.name,
                 variant = LightTextVariant.Heading,
-                modifier = Modifier.padding(end = 8.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp),
             )
             LightIcon(
                 icon = if (isFavorite) LightIcons.STAR else LightIcons.STAR_OUTLINE,

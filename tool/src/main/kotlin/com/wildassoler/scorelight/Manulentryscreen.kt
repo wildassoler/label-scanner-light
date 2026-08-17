@@ -41,6 +41,16 @@ import com.thelightphone.sdk.ui.LightThemeController
 import com.thelightphone.sdk.ui.LightThemeTokens
 import com.thelightphone.sdk.ui.lightClickable
 
+/**
+ * First screen of the app: a single text field for the product's barcode
+ * digits, plus a link into the favourites list.
+ *
+ * The field does NOT auto-focus on open — if it did, the keyboard would pop
+ * up immediately and cover/block the "Favourites" link below it, forcing
+ * anyone who just wants to check their favourites to dismiss the keyboard
+ * first. Instead it shows as a plain underlined line with a placeholder,
+ * and only opens the keyboard once the user actually taps it.
+ */
 @InitialScreen
 class ManualEntryScreen(sealedActivity: SealedLightActivity) :
     LightScreen<Unit, ManualEntryScreenViewModel>(sealedActivity) {
@@ -81,6 +91,9 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
                 val isFocused by interactionSource.collectIsFocusedAsState()
 
                 Box(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
+                    // Placeholder — hides as soon as the field is tapped
+                    // (focused), not only once text is typed, so it never
+                    // sits behind the blinking cursor.
                     if (barcodeText.isEmpty() && !isFocused) {
                         LightText(
                             text = "Enter barcode",
@@ -110,6 +123,9 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
                     )
                 }
 
+                // Thin underline under the field — signals "this is a
+                // single line of input", nothing more, keeping the screen
+                // minimal rather than boxing the field in.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -127,6 +143,8 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
                         .padding(top = 32.dp, bottom = 48.dp),
                 )
 
+                // Favourites deserves more visual weight than a plain
+                // secondary link — it's a real destination, not a footnote.
                 LightText(
                     text = "Favourites",
                     variant = LightTextVariant.Heading,
@@ -141,7 +159,7 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
     }
 
     private fun navigateToResult(barcode: String) {
-        navigateTo(screenFactory = { activity -> ResultScreen(activity, barcode) })
+        navigateTo(screenFactory = { activity -> ResultScreen(activity, normalizeBarcode(barcode)) })
     }
 
     private inline fun submitIfNotBlank(value: String, onValid: (String) -> Unit) {
@@ -152,6 +170,8 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
 
 class ManualEntryScreenViewModel : LightViewModel<Unit>()
 
+// Groups digits like a printed EAN-13 barcode: "4 056489 409755" — one
+// digit, a space, six digits, a space, six digits.
 private object Ean13GroupingTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val digits = text.text
