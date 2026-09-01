@@ -3,11 +3,14 @@ package com.wildassoler.scorelight
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -17,9 +20,8 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 private const val OFF_BASE = "https://world.openfoodfacts.org/api/v2"
+private const val REQUEST_TIMEOUT_MILLIS = 10_000L
 
-// Fields requested from OpenFoodFacts. Kept as one list so the response
-// parsing below and the query string can't drift out of sync.
 private const val OFF_FIELDS = "product_name,brands,nutriscore_grade,nova_group," +
         "additives_tags,ingredients_text,nutriments"
 
@@ -32,7 +34,6 @@ internal data class OffProductResponse(
 @Serializable
 internal data class OffProduct(
     @SerialName("product_name") val productName: String? = null,
-    // comma-separated, e.g. "Milka, Mondelez"
     val brands: String? = null,
     @SerialName("nutriscore_grade") val nutriscoreGrade: String? = null,
     @SerialName("nova_group") val novaGroup: Int? = null,
@@ -41,15 +42,12 @@ internal data class OffProduct(
     val nutriments: JsonObject? = null,
 )
 
-// A trimmed-down, UI-ready view of a product. Serializable so it can be
-// cached whole in FavoritesStore — favourited products don't need a
-// second network call to display later.
 @Serializable
 data class ScannedProduct(
     val barcode: String,
     val name: String,
     val brand: String?,
-    val nutriscoreGrade: String?, // "a".."e", or null if unknown
+    val nutriscoreGrade: String?,
     val novaGroup: Int?,
     val additivesCount: Int,
     val ingredientsText: String?,
@@ -75,6 +73,14 @@ class OpenFoodFactsApi {
         install(ContentNegotiation) {
             json(json)
         }
+        // Without this, a stalled connection (dead wifi, slow mobile data)
+        // leaves the request hanging indefinitely — the UI would just sit
+        // on "Looking up product…" forever with no way out but force-quit.
+        install(HttpTimeout) {
+            requestTimeoutMillis = REQUEST_TIMEOUT_MILLIS
+            connectTimeoutMillis = REQUEST_TIMEOUT_MILLIS
+            socketTimeoutMillis = REQUEST_TIMEOUT_MILLIS
+        }
     }
 
     suspend fun fetchProduct(barcode: String): ScanLookupResult {
@@ -94,6 +100,17 @@ class OpenFoodFactsApi {
             } else {
                 ScanLookupResult.Found(product.toScannedProduct(barcode))
             }
+        } catch (e: HttpRequestTimeoutException) {
+            // Ktor's timeout exception is itself a CancellationException
+            // subtype, so it must be caught here — before the generic
+            // CancellationException rethrow below — or it would silently
+            // propagate instead of becoming a user-visible error.
+            ScanLookupResult.Error("Request timed out. Check your connection and try again.")
+        } catch (e: CancellationException) {
+            // A genuine cancellation (e.g. the screen was navigated away
+            // from mid-request) — must propagate, not be swallowed as an
+            // "error", or coroutine cancellation semantics break.
+            throw e
         } catch (e: Exception) {
             ScanLookupResult.Error(e.message ?: "Unknown network error")
         }
@@ -104,9 +121,6 @@ class OpenFoodFactsApi {
     }
 }
 
-// Pulls a numeric nutrient out of the loosely-typed `nutriments` object.
-// OpenFoodFacts always suffixes per-100g fields with "_100g", e.g.
-// "sugars_100g", "saturated-fat_100g", "proteins_100g".
 private fun JsonObject?.nutrient(key: String): Double? {
     val element: JsonElement = this?.get("${key}_100g") ?: return null
     return element.jsonPrimitive.doubleOrNull
@@ -116,8 +130,6 @@ private fun OffProduct.toScannedProduct(barcode: String): ScannedProduct {
     return ScannedProduct(
         barcode = barcode,
         name = productName?.takeIf { it.isNotBlank() } ?: "Unknown product",
-        // Brands field can list several ("Milka, Mondelez International") —
-        // just take the first one, which is normally the actual brand name.
         brand = brands?.split(",")?.firstOrNull()?.trim()?.takeIf { it.isNotBlank() },
         nutriscoreGrade = nutriscoreGrade?.lowercase(),
         novaGroup = novaGroup,
