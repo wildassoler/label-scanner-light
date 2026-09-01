@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.thelightphone.sdk.LightScreen
@@ -36,15 +37,8 @@ import com.thelightphone.sdk.ui.lightClickable
 
 private const val MAX_BARCODE_LENGTH = 13
 
-/**
- * Dedicated screen for entering a barcode with a custom on-screen number
- * pad — no system keyboard involved. Gets the whole screen to itself (not
- * shared with the home screen's title/subtitle/favourites), and every
- * button gets a real allotted cell via weight()-based sizing (both the
- * pad's own height within the screen, and each row/button within the pad)
- * rather than aspectRatio guessing at proportions, which is what caused
- * the overlap on the cramped shared layout this replaced.
- */
+private const val DISABLED_ICON_ALPHA = 0.35f
+
 class BarcodeEntryScreen(sealedActivity: SealedLightActivity) :
     LightScreen<Unit, BarcodeEntryScreenViewModel>(sealedActivity) {
 
@@ -77,16 +71,13 @@ class BarcodeEntryScreen(sealedActivity: SealedLightActivity) :
                         .background(LightThemeTokens.colors.contentSecondary),
                 )
 
-                // The pad takes all the vertical space left after the top
-                // bar, display, and divider above — its 4 rows then split
-                // that space evenly via their own weight(1f), so button
-                // height is always exactly right, whatever the screen size.
                 NumberPad(
                     onDigit = { digit ->
                         if (barcodeText.length < MAX_BARCODE_LENGTH) barcodeText += digit
                     },
                     onBackspace = { barcodeText = barcodeText.dropLast(1) },
                     onSubmit = { submitIfNotBlank(barcodeText) { code -> navigateToResult(code) } },
+                    isSubmitEnabled = barcodeText.isNotEmpty(),
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
             }
@@ -124,16 +115,12 @@ private fun formatBarcodeGrouping(digits: String): String = buildString {
     }
 }
 
-// 4 rows: 1-9, then a spacer / 0 / delete, then a full-width submit row.
-// Every row gets weight(1f) of the pad's own height, and every button
-// within a row gets weight(1f) of that row's width — so cells are always
-// correctly sized for whatever space the pad actually has, rather than
-// guessed via a fixed aspect ratio.
 @Composable
 private fun NumberPad(
     onDigit: (String) -> Unit,
     onBackspace: () -> Unit,
     onSubmit: () -> Unit,
+    isSubmitEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
@@ -160,8 +147,14 @@ private fun NumberPad(
             PadCell(modifier = Modifier.weight(1f), onClick = { onDigit("0") }) {
                 LightText(text = "0", variant = LightTextVariant.Heading)
             }
-            PadCell(modifier = Modifier.weight(1f), onClick = onSubmit) {
-                LightIcon(icon = LightIcons.SEARCH)
+            PadCell(
+                modifier = Modifier.weight(1f),
+                onClick = onSubmit,
+            ) {
+                LightIcon(
+                    icon = LightIcons.SEARCH,
+                    modifier = Modifier.alpha(if (isSubmitEnabled) 1f else DISABLED_ICON_ALPHA),
+                )
             }
         }
     }
