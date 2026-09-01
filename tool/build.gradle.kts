@@ -62,4 +62,5 @@ dependencies {
     testImplementation(libs.kotlin.test)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     ksp(libs.androidx.room.compiler)
+    testImplementation("io.ktor:ktor-client-mock:3.4.2")
 }

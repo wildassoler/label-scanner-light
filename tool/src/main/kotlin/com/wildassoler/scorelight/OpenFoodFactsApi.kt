@@ -66,11 +66,11 @@ sealed class ScanLookupResult {
     data class Error(val message: String) : ScanLookupResult()
 }
 
-class OpenFoodFactsApi {
+class OpenFoodFactsApi(private val httpClient: HttpClient = client) {
 
     suspend fun fetchProduct(barcode: String): ScanLookupResult {
         return try {
-            val response = client.get("$OFF_BASE/product/$barcode.json?fields=$OFF_FIELDS")
+            val response = httpClient.get("$OFF_BASE/product/$barcode.json?fields=$OFF_FIELDS")
 
             if (!response.status.isSuccess()) {
                 val body = response.bodyAsText().take(300)
@@ -86,15 +86,8 @@ class OpenFoodFactsApi {
                 ScanLookupResult.Found(product.toScannedProduct(barcode))
             }
         } catch (e: HttpRequestTimeoutException) {
-            // Ktor's timeout exception is itself a CancellationException
-            // subtype, so it must be caught here — before the generic
-            // CancellationException rethrow below — or it would silently
-            // propagate instead of becoming a user-visible error.
             ScanLookupResult.Error("Request timed out. Check your connection and try again.")
         } catch (e: CancellationException) {
-            // A genuine cancellation (e.g. the screen was navigated away
-            // from mid-request) — must propagate, not be swallowed as an
-            // "error", or coroutine cancellation semantics break.
             throw e
         } catch (e: Exception) {
             ScanLookupResult.Error(e.message ?: "Unknown network error")
@@ -104,11 +97,6 @@ class OpenFoodFactsApi {
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
 
-        // Shared by every OpenFoodFactsApi instance — constructing an
-        // HttpClient (connection pool, dispatcher threads) isn't free, and
-        // a fresh screen doesn't need its own. Lives for the process's
-        // whole lifetime; Android tears it down when the app dies, same as
-        // any other in-memory singleton — no manual close() needed.
         private val client = HttpClient(OkHttp) {
             install(ContentNegotiation) {
                 json(json)
