@@ -8,11 +8,11 @@ interface ProductLookupService {
 }
 
 // Real implementation — wraps OpenFoodFactsApi, used in production.
+// OpenFoodFactsApi's HttpClient is a shared singleton now (see its
+// companion object), so there's no per-instance resource to close here.
 class OpenFoodFactsService : ProductLookupService {
     private val api = OpenFoodFactsApi()
 
     override suspend fun fetchProduct(barcode: String): ScanLookupResult =
         api.fetchProduct(barcode)
-
-    fun close() = api.close()
 }

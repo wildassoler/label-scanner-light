@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-// HealthScore and calculateHealthScore now live in HealthScore.kt — pure
+// HealthScore and calculateHealthScore live in HealthScore.kt — pure
 // domain logic, no Compose dependency, testable on its own.
 
 sealed class ResultUiState {
@@ -78,10 +78,9 @@ class ResultScreenViewModel(
         viewModelScope.launch { favoritesStore.toggleFavorite(product) }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        (lookupService as? OpenFoodFactsService)?.close()
-    }
+    // No onCleared() override needed any more — OpenFoodFactsApi's
+    // HttpClient is a shared singleton now, not something this ViewModel
+    // owns and must close when it goes away.
 }
 
 class ResultScreen(

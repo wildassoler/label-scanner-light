@@ -67,21 +67,6 @@ sealed class ScanLookupResult {
 }
 
 class OpenFoodFactsApi {
-    private val json = Json { ignoreUnknownKeys = true }
-
-    private val client = HttpClient(OkHttp) {
-        install(ContentNegotiation) {
-            json(json)
-        }
-        // Without this, a stalled connection (dead wifi, slow mobile data)
-        // leaves the request hanging indefinitely — the UI would just sit
-        // on "Looking up product…" forever with no way out but force-quit.
-        install(HttpTimeout) {
-            requestTimeoutMillis = REQUEST_TIMEOUT_MILLIS
-            connectTimeoutMillis = REQUEST_TIMEOUT_MILLIS
-            socketTimeoutMillis = REQUEST_TIMEOUT_MILLIS
-        }
-    }
 
     suspend fun fetchProduct(barcode: String): ScanLookupResult {
         return try {
@@ -116,8 +101,24 @@ class OpenFoodFactsApi {
         }
     }
 
-    fun close() {
-        client.close()
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true }
+
+        // Shared by every OpenFoodFactsApi instance — constructing an
+        // HttpClient (connection pool, dispatcher threads) isn't free, and
+        // a fresh screen doesn't need its own. Lives for the process's
+        // whole lifetime; Android tears it down when the app dies, same as
+        // any other in-memory singleton — no manual close() needed.
+        private val client = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+            install(HttpTimeout) {
+                requestTimeoutMillis = REQUEST_TIMEOUT_MILLIS
+                connectTimeoutMillis = REQUEST_TIMEOUT_MILLIS
+                socketTimeoutMillis = REQUEST_TIMEOUT_MILLIS
+            }
+        }
     }
 }
 
