@@ -259,25 +259,27 @@ private fun QrViewfinderOverlay(
     frameColor: Color,
     scrimColor: Color,
     modifier: Modifier = Modifier,
-    frameSizeFraction: Float = 0.62f,
+    frameWidthFraction: Float = 0.82f,
+    aspectRatio: Float = 0.55f, // ~1.8 : 1 rectangular aspect ratio ideal for 1D retail barcodes
 ) {
     Canvas(modifier = modifier) {
-        val frameSize = size.minDimension * frameSizeFraction
-        val left = (size.width - frameSize) / 2f
-        val top = (size.height - frameSize) / 2f
-        val right = left + frameSize
-        val bottom = top + frameSize
+        val frameWidth = size.width * frameWidthFraction
+        val frameHeight = frameWidth * aspectRatio
+        val left = (size.width - frameWidth) / 2f
+        val top = (size.height - frameHeight) / 2f
+        val right = left + frameWidth
+        val bottom = top + frameHeight
 
         drawRect(scrimColor, topLeft = Offset.Zero, size = Size(size.width, top))
         drawRect(scrimColor, topLeft = Offset(0f, bottom), size = Size(size.width, size.height - bottom))
-        drawRect(scrimColor, topLeft = Offset(0f, top), size = Size(left, frameSize))
-        drawRect(scrimColor, topLeft = Offset(right, top), size = Size(size.width - right, frameSize))
+        drawRect(scrimColor, topLeft = Offset(0f, top), size = Size(left, frameHeight))
+        drawRect(scrimColor, topLeft = Offset(right, top), size = Size(size.width - right, frameHeight))
 
         drawRoundRect(
             color = frameColor,
             topLeft = Offset(left, top),
-            size = Size(frameSize, frameSize),
-            cornerRadius = CornerRadius(8f, 8f),
+            size = Size(frameWidth, frameHeight),
+            cornerRadius = CornerRadius(12f, 12f),
             style = Stroke(width = 3f),
         )
     }
