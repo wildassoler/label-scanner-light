@@ -55,6 +55,7 @@ fun ProductDetailContent(
             )
             LightIcon(
                 icon = if (isFavorite) LightIcons.STAR else LightIcons.STAR_OUTLINE,
+                contentDescription = if (isFavorite) "Remove from favourites" else "Add to favourites",
                 modifier = Modifier.lightClickable(onClick = onToggleFavorite),
             )
         }

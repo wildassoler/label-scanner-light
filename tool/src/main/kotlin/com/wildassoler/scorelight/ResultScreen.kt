@@ -117,7 +117,7 @@ class ResultScreen(
                 )
 
                 when (val current = state) {
-                    is ResultUiState.Loading -> MessageContent("Looking up product…")
+                    is ResultUiState.Loading -> LoadingContent()
                     is ResultUiState.Found -> ProductDetailContent(
                         product = current.product,
                         score = current.score,
@@ -140,12 +140,12 @@ class ResultScreen(
 }
 
 @Composable
-private fun MessageContent(message: String) {
+private fun LoadingContent() {
     Box(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         contentAlignment = Alignment.TopStart,
     ) {
-        LightText(text = message, variant = LightTextVariant.Copy, align = TextAlign.Start)
+        LightText(text = "Looking up product…", variant = LightTextVariant.Copy, align = TextAlign.Start)
     }
 }
 
