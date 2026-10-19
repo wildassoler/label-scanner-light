@@ -71,9 +71,8 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
 
                     // Manual fallback: open custom number pad
                     LightText(
-                        text = "Type barcode...",
-                        variant = LightTextVariant.Copy,
-                        lighten = true,
+                        text = "TYPE BARCODE",
+                        variant = LightTextVariant.Button,
                         underline = true,
                         modifier = Modifier.lightClickable(
                             onClick = {
@@ -108,7 +107,6 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
                             },
                         ),
                     ),
-                    modifier = Modifier.padding(bottom = 16.dp),
                 )
             }
         }
