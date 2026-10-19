@@ -24,10 +24,9 @@ import com.thelightphone.sdk.ui.LightThemeController
 import com.thelightphone.sdk.ui.lightClickable
 
 /**
- * Home screen: just the title, a big search icon that opens the barcode
- * entry pad, and a link into favourites. Deliberately minimal — the number
- * pad needs its own screen with room to breathe (see BarcodeEntryScreen),
- * rather than sharing this one with the title/subtitle/favourites link.
+ * Home screen: the title, a big search icon that opens the camera scanner,
+ * a quieter "Type barcode" link for the manual number pad (the fallback when
+ * the camera can't read a code), and a link into favourites.
  */
 @InitialScreen
 class ManualEntryScreen(sealedActivity: SealedLightActivity) :
@@ -55,15 +54,40 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LightText(
-                    text = "Look up a product's health score.",
+                    text = "Scan a product's barcode for its health score.",
                     variant = LightTextVariant.Copy,
                     align = TextAlign.Center,
                     lighten = true,
                     modifier = Modifier.padding(bottom = 48.dp),
                 )
 
+                // Opens the camera scanner. ScanScreen hands back the
+                // normalised barcode, then we pop to the result screen.
                 LightIcon(
                     icon = LightIcons.SEARCH,
+                    modifier = Modifier
+                        .lightClickable(
+                            onClick = {
+                                navigateTo(
+                                    screenFactory = { activity -> ScanScreen(activity) },
+                                    resultCallback = { barcode ->
+                                        navigateTo(
+                                            screenFactory = { activity ->
+                                                ResultScreen(activity, barcode)
+                                            },
+                                        )
+                                    },
+                                )
+                            },
+                        )
+                        .padding(bottom = 24.dp),
+                )
+
+                // Manual fallback: the custom number pad.
+                LightText(
+                    text = "Type barcode",
+                    variant = LightTextVariant.Copy,
+                    lighten = true,
                     modifier = Modifier
                         .lightClickable(
                             onClick = {
