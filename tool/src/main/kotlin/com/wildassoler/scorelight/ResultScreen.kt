@@ -23,6 +23,7 @@ import com.thelightphone.sdk.ui.LightTheme
 import com.thelightphone.sdk.ui.LightThemeController
 import com.thelightphone.sdk.ui.LightTopBar
 import com.thelightphone.sdk.ui.LightTopBarCenter
+import com.thelightphone.sdk.ui.lightClickable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +56,10 @@ class ResultScreenViewModel(
     // across a hide/show cycle), and doing it here makes the ViewModel
     // testable without needing a live SimpleLightScreen instance.
     init {
+        lookUp()
+    }
+
+    fun retry() {
         lookUp()
     }
 
@@ -119,11 +124,14 @@ class ResultScreen(
                         isFavorite = isFavorite,
                         onToggleFavorite = { viewModel.toggleFavorite(current.product) },
                     )
-                    is ResultUiState.NotFound -> MessageContent(
-                        "Product not found in the OpenFoodFacts database.",
+                    is ResultUiState.NotFound -> NotFoundContent(
+                        barcode = barcode,
+                        onBack = { goBack() },
                     )
-                    is ResultUiState.Error -> MessageContent(
-                        "Something went wrong: ${current.message}",
+                    is ResultUiState.Error -> ErrorContent(
+                        message = current.message,
+                        onRetry = { viewModel.retry() },
+                        onBack = { goBack() },
                     )
                 }
             }
@@ -138,5 +146,87 @@ private fun MessageContent(message: String) {
         contentAlignment = Alignment.TopStart,
     ) {
         LightText(text = message, variant = LightTextVariant.Copy, align = TextAlign.Start)
+    }
+}
+
+@Composable
+private fun NotFoundContent(
+    barcode: String,
+    onBack: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+    ) {
+        LightText(
+            text = "Product Not Found",
+            variant = LightTextVariant.Heading,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
+
+        LightText(
+            text = "Barcode $barcode was not found in the OpenFoodFacts database.",
+            variant = LightTextVariant.Copy,
+            lighten = true,
+            modifier = Modifier.padding(bottom = 16.dp),
+        )
+
+        LightText(
+            text = "This can happen with store-specific or internal codes that aren't registered globally.",
+            variant = LightTextVariant.Paragraph,
+            lighten = true,
+            modifier = Modifier.padding(bottom = 32.dp),
+        )
+
+        LightText(
+            text = "Scan another barcode",
+            variant = LightTextVariant.Copy,
+            underline = true,
+            modifier = Modifier.lightClickable(onClick = onBack),
+        )
+    }
+}
+
+@Composable
+private fun ErrorContent(
+    message: String,
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+    ) {
+        LightText(
+            text = "Connection Error",
+            variant = LightTextVariant.Heading,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
+
+        LightText(
+            text = message,
+            variant = LightTextVariant.Copy,
+            lighten = true,
+            modifier = Modifier.padding(bottom = 32.dp),
+        )
+
+        LightText(
+            text = "Try again",
+            variant = LightTextVariant.Copy,
+            underline = true,
+            modifier = Modifier
+                .lightClickable(onClick = onRetry)
+                .padding(bottom = 16.dp),
+        )
+
+        LightText(
+            text = "Go back",
+            variant = LightTextVariant.Copy,
+            lighten = true,
+            underline = true,
+            modifier = Modifier.lightClickable(onClick = onBack),
+        )
     }
 }

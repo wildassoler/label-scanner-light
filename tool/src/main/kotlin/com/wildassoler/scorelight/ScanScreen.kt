@@ -13,7 +13,6 @@ import com.thelightphone.sdk.LightQrCodeScanner
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel
 import com.thelightphone.sdk.SealedLightActivity
-import com.thelightphone.sdk.ui.LightBarcodeFormats
 import com.thelightphone.sdk.ui.LightTheme
 import com.thelightphone.sdk.ui.LightThemeController
 import com.thelightphone.sdk.ui.LightThemeTokens
@@ -21,9 +20,7 @@ import com.thelightphone.sdk.ui.LightThemeTokens
 class ScanScreenViewModel : LightViewModel<String>()
 
 /**
- * Camera scanner for product barcodes. Despite the "Qr" in the wrapper's
- * name, it decodes whatever formats we pass in; here, the retail symbologies
- * only. Returns the normalised barcode to whoever opened it.
+ * Camera scanner for product barcodes. Returns the normalised barcode to whoever opened it.
  */
 class ScanScreen(sealedActivity: SealedLightActivity) :
     LightScreen<String, ScanScreenViewModel>(sealedActivity) {
@@ -41,16 +38,7 @@ class ScanScreen(sealedActivity: SealedLightActivity) :
         LightTheme(colors = themeColors) {
             LightQrCodeScanner(
                 title = "Scan Barcode",
-                formats = listOf(
-                    LightBarcodeFormats.EAN_13,
-                    LightBarcodeFormats.EAN_8,
-                    LightBarcodeFormats.UPC_A,
-                    LightBarcodeFormats.UPC_E,
-                ),
-                // Required by the wrapper, but unused: we read the richer
-                // onScannedBarcode callback below instead.
-                onScanned = {},
-                onScannedBarcode = { pendingScan = it.value },
+                onScanned = { pendingScan = it },
                 onBack = { goBack() },
                 modifier = Modifier.background(LightThemeTokens.colors.background),
             )

@@ -7,7 +7,7 @@ import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CancellationException
@@ -72,9 +72,12 @@ class OpenFoodFactsApi(private val httpClient: HttpClient = client) {
         return try {
             val response = httpClient.get("$OFF_BASE/product/$barcode.json?fields=$OFF_FIELDS")
 
+            if (response.status == HttpStatusCode.NotFound) {
+                return ScanLookupResult.NotFound
+            }
+
             if (!response.status.isSuccess()) {
-                val body = response.bodyAsText().take(300)
-                return ScanLookupResult.Error("HTTP ${response.status.value}: $body")
+                return ScanLookupResult.Error("Server error (${response.status.value}). Please try again later.")
             }
 
             val parsed: OffProductResponse = response.body()
@@ -86,11 +89,11 @@ class OpenFoodFactsApi(private val httpClient: HttpClient = client) {
                 ScanLookupResult.Found(product.toScannedProduct(barcode))
             }
         } catch (e: HttpRequestTimeoutException) {
-            ScanLookupResult.Error("Request timed out. Check your connection and try again.")
+            ScanLookupResult.Error("Request timed out. Please check your connection and try again.")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            ScanLookupResult.Error(e.message ?: "Unknown network error")
+            ScanLookupResult.Error("Unable to load product. Please check your connection and try again.")
         }
     }
 

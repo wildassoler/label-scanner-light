@@ -75,6 +75,16 @@ class OpenFoodFactsApiTest {
     }
 
     @Test
+    fun http404ReturnsNotFound() = runTest {
+        val body = """{"code":"8116144812000299","status":0,"status_verbose":"product not found"}"""
+        val api = OpenFoodFactsApi(httpClient = fakeClient(HttpStatusCode.NotFound, body))
+
+        val result = api.fetchProduct("8116144812000299")
+
+        assertIs<ScanLookupResult.NotFound>(result)
+    }
+
+    @Test
     fun missingProductNameFallsBackToPlaceholder() = runTest {
         val body = """{ "status": 1, "product": {} }"""
         val api = OpenFoodFactsApi(httpClient = fakeClient(HttpStatusCode.OK, body))
