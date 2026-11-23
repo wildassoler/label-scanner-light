@@ -56,7 +56,7 @@ class ManualEntryScreen(sealedActivity: SealedLightActivity) :
                         .padding(horizontal = 32.dp),
                 ) {
                     LightText(
-                        text = "Score Light",
+                        text = "Food Score Light",
                         variant = LightTextVariant.Heading,
                         align = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 8.dp),

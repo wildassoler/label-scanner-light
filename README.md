@@ -1,4 +1,4 @@
-# Score Light
+# Food Score Light
 
 A tool for the Light Phone III that looks up a product's health score
 from its barcode.
@@ -7,7 +7,7 @@ from its barcode.
 
 1. Type a product's barcode number (the digits printed under the black
    lines, not any other code on the package)
-2. Score Light looks the product up via the [OpenFoodFacts](https://world.openfoodfacts.org/)
+2. Food Score Light looks the product up via the [OpenFoodFacts](https://world.openfoodfacts.org/)
    API
 3. See the product's Nutri-Score grade, a plain-language health
    rating, and the specific reasons behind it (sugar, saturated fat,

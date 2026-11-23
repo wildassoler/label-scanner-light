@@ -1,6 +1,6 @@
 [tool]
 id = "com.wildassoler.scorelight"
-label = "Score Light"
+label = "Food Score Light"
 versionCode = 1
 versionName = "1.0.0"
 permissions = ["android.permission.INTERNET", "android.permission.CAMERA"]

@@ -20,7 +20,7 @@ import com.thelightphone.sdk.ui.LightThemeTokens
 class ScanScreenViewModel : LightViewModel<String>()
 
 /**
- * Camera scanner for product barcodes. Returns the normalised barcode to whoever opened it.
+ * Camera scanner for product barcodes. Returns the normalized barcode to whoever opened it.
  */
 class ScanScreen(sealedActivity: SealedLightActivity) :
     LightScreen<String, ScanScreenViewModel>(sealedActivity) {

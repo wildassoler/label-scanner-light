@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -68,6 +67,9 @@ android {
         resources {
             excludes += "META-INF/INDEX.LIST"
             excludes += "META-INF/io.netty.*"
+            excludes += "META-INF/license/**"
+            excludes += "META-INF/LICENSE*"
+            excludes += "META-INF/native-image/**"
         }
     }
 }
